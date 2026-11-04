@@ -532,6 +532,14 @@ void sam_synth_free(sam_synth *s)
     free(s);
 }
 
+/* The output rate is read per segment and nothing else is derived from it, so changing it on a live
+ * synth is safe. hz <= 0 returns to the voice's own timeline. */
+void sam_synth_set_out_rate(sam_synth *s, int hz)
+{
+    if (!s) return;
+    s->p.out_rate = hz > 0 ? hz : 0;
+}
+
 static float *scratch(sam_synth *s, size_t n)
 {
     if (n > s->buf_cap) {

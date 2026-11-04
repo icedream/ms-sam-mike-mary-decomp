@@ -31,6 +31,7 @@ struct sam_tts {
 
 int sam_synth_chunk_pos(const sam_synth *s);
 void sam_synth_chunk_reset(sam_synth *s);
+void sam_synth_set_out_rate(sam_synth *s, int hz);
 
 /* Raw access to a section of the .spd voice file (0..4). */
 const uint8_t *sam_voice_section(const sam_voice *v, int index, uint32_t *size);

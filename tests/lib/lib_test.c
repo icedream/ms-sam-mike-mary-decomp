@@ -7,11 +7,14 @@
  * 3. word / sentence / bookmark events are in order, inside the text, and their audio positions
  *    never run past the audio that has been delivered
  * 4. two handles opened the same way render the same text identically
+ * 5. sam_tts_sample_rate() is the rate the handle really emits, and set_sample_rate moves it
  *
  * Note: one handle does not repeat itself exactly. The engine's accent prominences come from the CRT
  * rand(), whose state runs on from one Speak() to the next, as it does in the original spttseng.dll;
  * so does the vocoder's position in the voice's noise buffer.
  */
+#define _DEFAULT_SOURCE /* usleep() below: -std=c99 hides it otherwise */
+
 #include "../../src/sam_tts.h"
 
 #include <stdio.h>
@@ -162,7 +165,28 @@ int main(int argc, char **argv)
         sam_tts_close(t2);
     }
 
-    /* 3. cancel from another thread */
+    /* 3. the rate the handle reports is the rate it emits */
+    {
+        sam_speech *t3 = sam_tts_open(dir, "Sam", err, sizeof err);
+        ctx h;
+        memset(&h, 0, sizeof h);
+        h.t = t3;
+        h.text = LONG_TEXT;
+        h.order_ok = h.span_ok = h.pos_ok = 1;
+        h.ncap = c.ncap;
+        h.pcm = malloc((size_t)h.ncap * sizeof *h.pcm);
+        cb.user = &h;
+        check(t3 && sam_tts_sample_rate(t3) == SAM_TTS_SAMPLE_RATE, "an untouched handle reports the voice's own rate");
+        if (t3) sam_tts_set_sample_rate(t3, 11025);
+        check(t3 && sam_tts_sample_rate(t3) == 11025, "set_sample_rate changes what the handle reports");
+        rc = t3 ? sam_tts_speak(t3, LONG_TEXT, 0, &cb) : -1;
+        /* the vocoder stretches the pitch periods, so half the rate is about twice the samples */
+        check(rc == 0 && llabs(h.samples - full / 2) < full / 50, "half the rate takes twice the samples");
+        free(h.pcm);
+        sam_tts_close(t3);
+    }
+
+    /* 4. cancel from another thread */
     {
         thread_t th;
         memset(&c, 0, sizeof c);
@@ -183,7 +207,7 @@ int main(int argc, char **argv)
                c.samples - c.at_cancel, c.samples, full);
     }
 
-    /* 4. stopping from the audio callback */
+    /* 5. stopping from the audio callback */
     {
         memset(&c, 0, sizeof c);
         c.t = t;
@@ -196,7 +220,7 @@ int main(int argc, char **argv)
         check(c.samples < full, "it stopped before the end");
     }
 
-    /* 5. it still works after being cancelled */
+    /* 6. it still works after being cancelled */
     {
         memset(&c, 0, sizeof c);
         c.t = t;
@@ -211,7 +235,7 @@ int main(int argc, char **argv)
         free(c.pcm);
     }
 
-    /* 6. bookmarks and XML */
+    /* 7. bookmarks and XML */
     {
         static const char *xml = "<bookmark mark=\"a\"/>Hello there. How <bookmark mark=\"b\"/>are you?";
         memset(&c, 0, sizeof c);

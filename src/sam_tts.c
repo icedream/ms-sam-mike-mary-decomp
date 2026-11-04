@@ -8,6 +8,7 @@
 #include "sam_tts.h"
 #include "sam.h"
 #include "sam4fx.h"
+#include "sam_internal.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -101,10 +102,23 @@ void sam_tts_close(sam_speech *t)
 void sam_tts_set_rate(sam_speech *t, int rate) { t->rate = rate < -10 ? -10 : rate > 18 ? 18 : rate; }
 void sam_tts_set_volume(sam_speech *t, int v) { t->volume = v < 0 ? 0 : v > 100 ? 100 : v; }
 void sam_tts_set_pitch(sam_speech *t, int p) { t->pitch = p < -10 ? -10 : p > 10 ? 10 : p; }
+
+/* A voice file declares the rate its units were recorded at: Sam, Mike and Mary are 22050, a voice
+ * rebuilt from another corpus may sit at 16000. Pass 0 to go back to the voice's own timeline. */
+void sam_tts_set_sample_rate(sam_speech *t, int hz)
+{
+    if (!t) return;
+    t->p.out_rate = hz > 0 ? hz : 0;
+    if (t->eng) sam_synth_set_out_rate(t->eng->synth, t->p.out_rate);
+}
 void sam_tts_cancel(sam_speech *t) { t->cancel = 1; }
 int sam_tts_sample_rate(const sam_speech *t)
 {
-    return t && t->p.out_rate > 0 ? t->p.out_rate : SAM_TTS_SAMPLE_RATE;
+    /* The rate the handle will really produce: a voice on its own timeline emits voice-rate samples,
+     * and calling that 22050 plays the voice fast and high. */
+    if (!t) return SAM_TTS_SAMPLE_RATE;
+    if (t->p.out_rate > 0) return t->p.out_rate;
+    return t->eng && t->eng->voice ? sam_voice_rate(t->eng->voice) : SAM_TTS_SAMPLE_RATE;
 }
 
 int sam_tts_set_effect(sam_speech *t, const char *name)

@@ -76,6 +76,12 @@ SAM_API void sam_tts_set_rate(sam_speech *t, int rate);
 SAM_API void sam_tts_set_volume(sam_speech *t, int volume);
 SAM_API void sam_tts_set_pitch(sam_speech *t, int pitch);
 
+/* Render at this sample rate rather than the rate the voice file declares. Sam, Mike and Mary declare
+ * 22050; a voice rebuilt from another corpus can declare 16000, and a server that advertises one rate
+ * for every voice wants the vocoder to run at that rate. Pass 0 for the voice's own timeline, which is
+ * what sam_tts_sample_rate() then reports. */
+SAM_API void sam_tts_set_sample_rate(sam_speech *t, int hz);
+
 /* One of the SAPI 4 voice modes: "none", "hall", "stadium", "space", "room", "whisper",
  * "robosoft1".."robosoft6", "robot", "monotone". Whisper and the monotone RoboSofts also change the
  * synthesis (noise excitation / flat pitch), so this reloads the voice. Returns 0, or -1 for an
